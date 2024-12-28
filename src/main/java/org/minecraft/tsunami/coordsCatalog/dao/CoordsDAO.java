@@ -4,8 +4,12 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.minecraft.tsunami.coordsCatalog.Main;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.minecraft.tsunami.coordsCatalog.util.CoordsUtil.generateCoordId;
@@ -78,7 +82,7 @@ public class CoordsDAO {
 
     public List<String> listCoordinates(int page) {
         List<String> lines = readCoordLines().stream()
-                .skip((page - 1) * COORDS_PER_PAGE)
+                .skip((long) (page - 1) * COORDS_PER_PAGE)
                 .limit(COORDS_PER_PAGE)
                 .map(this::formatCoordLine)
                 .collect(Collectors.toList());
@@ -89,7 +93,7 @@ public class CoordsDAO {
     public List<String> findCoordinatesByName(String searchName, int page) {
         List<String> matchingCoords = readCoordLines().stream()
                 .filter(line -> line.toLowerCase().contains(searchName.toLowerCase()))
-                .skip((page - 1) * COORDS_PER_PAGE)
+                .skip((long) (page - 1) * COORDS_PER_PAGE)
                 .limit(COORDS_PER_PAGE)
                 .map(this::formatCoordLine)
                 .collect(Collectors.toList());
@@ -100,7 +104,7 @@ public class CoordsDAO {
     public List<String> listPlayerCoordinates(Player player, int page) {
         List<String> playerCoords = readCoordLines().stream()
                 .filter(line -> line.endsWith(player.getUniqueId().toString()))
-                .skip((page - 1) * COORDS_PER_PAGE)
+                .skip((long) (page - 1) * COORDS_PER_PAGE)
                 .limit(COORDS_PER_PAGE)
                 .map(this::formatCoordLine)
                 .collect(Collectors.toList());

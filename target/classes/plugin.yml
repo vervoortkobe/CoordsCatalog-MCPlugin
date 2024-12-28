@@ -2,3 +2,36 @@ name: CoordsCatalog
 version: '1.0-SNAPSHOT'
 main: org.minecraft.tsunami.coordsCatalog.Main
 api-version: '1.21'
+commands:
+  coordscatalog:
+    description: Main command for CoordsCatalog
+    aliases: [cc]
+    usage: /cc <subcommand> [args...]
+permissions:
+  coordscatalog.use:
+    description: Allows use of all CoordsCatalog commands
+    default: true
+  coordscatalog.save:
+    description: Allows saving coordinates
+    default: true
+  coordscatalog.delete:
+    description: Allows deleting own coordinates
+    default: true
+  coordscatalog.list:
+    description: Allows listing coordinates
+    default: true
+  coordscatalog.find:
+    description: Allows searching for coordinates
+    default: true
+  coordscatalog.me:
+    description: Allows viewing own coordinates
+    default: true
+  coordscatalog.check:
+    description: Allows checking other players' coordinates
+    default: op
+  coordscatalog.admin:
+    description: Allows use of all admin functions
+    default: op
+    children:
+      coordscatalog.check: true
+      coordscatalog.delete.others: true
