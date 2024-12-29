@@ -1,9 +1,6 @@
 package org.minecraft.tsunami.coordsCatalog.command;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -255,7 +252,7 @@ public class BaseCommand implements CommandExecutor {
 
         Player targetPlayer = Bukkit.getPlayer(args[1]);
         if (targetPlayer == null) {
-            sender.sendMessage(ERROR_PREFIX + "Player not found.");
+            sender.sendMessage(ERROR_PREFIX + "Player must be online to check their coordinates.");
             return true;
         }
 
