@@ -16,9 +16,6 @@ import static org.minecraft.tsunami.coordsCatalog.util.CoordsUtil.parseWorld;
 
 public class BaseCommand implements CommandExecutor {
     private final CoordsDAO coordsDAO;
-    private static final String PREFIX = ChatColor.GOLD + "📍 ";
-    private static final String ERROR_PREFIX = ChatColor.RED + "📍 ";
-    private static final String NO_PERMISSION_PREFIX = ChatColor.DARK_RED + "📍 ";
 
     public BaseCommand(Main plugin) {
         this.coordsDAO = new CoordsDAO(plugin);
@@ -34,11 +31,11 @@ public class BaseCommand implements CommandExecutor {
         switch (args[0].toLowerCase()) {
             case "save":
                 if (!sender.hasPermission("coordscatalog.save")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to save coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to save coordinates.");
                     return true;
                 }
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(ERROR_PREFIX + "This command can only be used by players.");
+                    sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
                     return true;
                 }
                 return handleSaveCommand((Player) sender, args);
@@ -46,62 +43,62 @@ public class BaseCommand implements CommandExecutor {
             case "delete":
             case "del":
                 if (!sender.hasPermission("coordscatalog.delete")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to delete coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to delete coordinates.");
                     return true;
                 }
                 return handleDeleteCommand(sender, args);
 
             case "list":
                 if (!sender.hasPermission("coordscatalog.list")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to list coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to list coordinates.");
                     return true;
                 }
                 return handleListCommand(sender, args);
 
             case "find":
                 if (!sender.hasPermission("coordscatalog.find")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to find coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to find coordinates.");
                     return true;
                 }
                 return handleFindCommand(sender, args);
 
             case "me":
                 if (!sender.hasPermission("coordscatalog.me")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to view your coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to view your coordinates.");
                     return true;
                 }
                 if (!(sender instanceof Player)) {
-                    sender.sendMessage(ERROR_PREFIX + "This command can only be used by players.");
+                    sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
                     return true;
                 }
                 return handleMeCommand((Player) sender, args);
 
             case "check":
                 if (!sender.hasPermission("coordscatalog.check")) {
-                    sender.sendMessage(NO_PERMISSION_PREFIX + "You don't have permission to check other players' coordinates.");
+                    sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to check other players' coordinates.");
                     return true;
                 }
                 return handleCheckCommand(sender, args);
 
             default:
-                sender.sendMessage(ERROR_PREFIX + "Invalid command. Use /coordscatalog help for a list of commands.");
+                sender.sendMessage(ChatColor.RED + "Invalid command. Use /coordscatalog help for a list of commands.");
                 return true;
         }
     }
 
     private void sendHelpMessage(CommandSender sender) {
-        sender.sendMessage(PREFIX + ChatColor.YELLOW + ChatColor.BOLD + "CoordsCatalog Commands:");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog save <name> [X] [Y] [Z] [world] " + ChatColor.WHITE + "- Save coordinates");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog delete <coordID> " + ChatColor.WHITE + "- Delete a coordinate");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog list [page] " + ChatColor.WHITE + "- List saved coordinates");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog find <name> " + ChatColor.WHITE + "- Find coordinates by name");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog me " + ChatColor.WHITE + "- Show your saved coordinates");
-        sender.sendMessage(ChatColor.GRAY + "/coordscatalog check <player> " + ChatColor.WHITE + "- Check a player's coordinates");
+        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "CoordsCatalog Commands:");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog save <name> [X] [Y] [Z] [world] " + ChatColor.GRAY + "- Save coordinates");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog delete <coordID> " + ChatColor.GRAY + "- Delete a coordinate");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog list [page] " + ChatColor.GRAY + "- List saved coordinates");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog find <name> " + ChatColor.GRAY + "- Find coordinates by name");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog me " + ChatColor.GRAY + "- Show your saved coordinates");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog check <player> " + ChatColor.GRAY + "- Check a player's coordinates");
     }
 
     private boolean handleSaveCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ERROR_PREFIX + "Usage: /coordscatalog save <name> [X] [Y] [Z] [world]");
+            player.sendMessage(ChatColor.RED + "Usage: /coordscatalog save <name> [X] [Y] [Z] [world]");
             return true;
         }
 
@@ -125,19 +122,19 @@ public class BaseCommand implements CommandExecutor {
                 world = parseWorld(args[5]);
             }
         } catch (IllegalArgumentException e) {
-            player.sendMessage(ERROR_PREFIX + e.getMessage());
+            player.sendMessage(ChatColor.RED + e.getMessage());
             return true;
         }
 
         assert world != null;
         String coordId = coordsDAO.saveCoordinate(name, x, y, z, world, player);
-        player.sendMessage(PREFIX + ChatColor.GREEN + "Coordinate saved with ID: " + coordId);
+        player.sendMessage(ChatColor.GREEN + "📍 Coordinate saved with ID: " + coordId);
         return true;
     }
 
     private boolean handleDeleteCommand(CommandSender sender, String[] args) {
         if (args.length != 2) {
-            sender.sendMessage(ERROR_PREFIX + "Usage: /coordscatalog delete <coordID>");
+            sender.sendMessage(ChatColor.RED + "Usage: /coordscatalog delete <coordID>");
             return true;
         }
 
@@ -145,9 +142,9 @@ public class BaseCommand implements CommandExecutor {
         boolean deleted = coordsDAO.deleteCoordinate(coordId, sender instanceof Player ? (Player) sender : null);
 
         if (deleted) {
-            sender.sendMessage(PREFIX + ChatColor.GREEN + "Coordinate deleted successfully.");
+            sender.sendMessage(ChatColor.GREEN + "📍 Coordinate deleted successfully.");
         } else {
-            sender.sendMessage(ERROR_PREFIX + "Could not delete coordinate. It may not exist or you may not have permission.");
+            sender.sendMessage(ChatColor.RED + "Could not delete coordinate. It may not exist or you may not have permission.");
         }
         return true;
     }
@@ -158,7 +155,7 @@ public class BaseCommand implements CommandExecutor {
             try {
                 page = Integer.parseInt(args[1]);
             } catch (NumberFormatException e) {
-                sender.sendMessage(ERROR_PREFIX + "Invalid page number.");
+                sender.sendMessage(ChatColor.RED + "Invalid page number.");
                 return true;
             }
         }
@@ -166,7 +163,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> coords = coordsDAO.listCoordinates(page);
         int totalPages = coordsDAO.getTotalPages();
 
-        sender.sendMessage(PREFIX + ChatColor.YELLOW + "Coordinates (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "Coordinates (Page " + page + "/" + totalPages + "):");
         coords.forEach(sender::sendMessage);
 
         if (page > 1) {
@@ -181,7 +178,7 @@ public class BaseCommand implements CommandExecutor {
 
     private boolean handleFindCommand(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage(ERROR_PREFIX + "Usage: /coordscatalog find <name>");
+            sender.sendMessage(ChatColor.RED + "Usage: /coordscatalog find <name>");
             return true;
         }
 
@@ -191,7 +188,7 @@ public class BaseCommand implements CommandExecutor {
             try {
                 page = Integer.parseInt(args[2]);
             } catch (NumberFormatException e) {
-                sender.sendMessage(ERROR_PREFIX + "Invalid page number.");
+                sender.sendMessage(ChatColor.RED + "Invalid page number.");
                 return true;
             }
         }
@@ -199,7 +196,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> foundCoords = coordsDAO.findCoordinatesByName(searchName, page);
         int totalPages = coordsDAO.getTotalPagesForSearch(searchName);
 
-        sender.sendMessage(PREFIX + ChatColor.YELLOW + "Coordinates matching '" + searchName + "' (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "📍 Coordinates matching '" + searchName + "' (Page " + page + "/" + totalPages + "):");
         foundCoords.forEach(sender::sendMessage);
 
         if (page > 1) {
@@ -218,7 +215,7 @@ public class BaseCommand implements CommandExecutor {
             try {
                 page = Integer.parseInt(args[1]);
             } catch (NumberFormatException e) {
-                player.sendMessage(ERROR_PREFIX + "Invalid page number.");
+                player.sendMessage(ChatColor.RED + "Invalid page number.");
                 return true;
             }
         }
@@ -226,7 +223,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> myCoords = coordsDAO.listPlayerCoordinates(player, page);
         int totalPages = coordsDAO.getTotalPagesForPlayer(player);
 
-        player.sendMessage(PREFIX + ChatColor.YELLOW + "Your Coordinates (Page " + page + "/" + totalPages + "):");
+        player.sendMessage(ChatColor.DARK_AQUA + "📍 Your Coordinates (Page " + page + "/" + totalPages + "):");
         myCoords.forEach(player::sendMessage);
 
         if (page > 1) {
@@ -241,18 +238,18 @@ public class BaseCommand implements CommandExecutor {
 
     private boolean handleCheckCommand(CommandSender sender, String[] args) {
         if (!sender.isOp()) {
-            sender.sendMessage(NO_PERMISSION_PREFIX + "Only operators can use this command.");
+            sender.sendMessage(ChatColor.DARK_RED + "Only operators can use this command.");
             return true;
         }
 
         if (args.length < 2) {
-            sender.sendMessage(ERROR_PREFIX + "Usage: /coordscatalog check <player>");
+            sender.sendMessage(ChatColor.RED + "Usage: /coordscatalog check <player>");
             return true;
         }
 
         Player targetPlayer = Bukkit.getPlayer(args[1]);
         if (targetPlayer == null) {
-            sender.sendMessage(ERROR_PREFIX + "Player must be online to check their coordinates.");
+            sender.sendMessage(ChatColor.RED + "Player must be online to check their coordinates.");
             return true;
         }
 
@@ -261,7 +258,7 @@ public class BaseCommand implements CommandExecutor {
             try {
                 page = Integer.parseInt(args[2]);
             } catch (NumberFormatException e) {
-                sender.sendMessage(ERROR_PREFIX + "Invalid page number.");
+                sender.sendMessage(ChatColor.RED + "Invalid page number.");
                 return true;
             }
         }
@@ -269,7 +266,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> targetCoords = coordsDAO.listPlayerCoordinates(targetPlayer, page);
         int totalPages = coordsDAO.getTotalPagesForPlayer(targetPlayer);
 
-        sender.sendMessage(PREFIX + ChatColor.YELLOW + targetPlayer.getName() + "'s Coordinates (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "📍 " + targetPlayer.getName() + "'s Coordinates (Page " + page + "/" + totalPages + "):");
         targetCoords.forEach(sender::sendMessage);
 
         if (page > 1) {
