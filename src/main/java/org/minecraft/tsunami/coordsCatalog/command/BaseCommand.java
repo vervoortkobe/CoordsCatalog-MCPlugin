@@ -128,7 +128,8 @@ public class BaseCommand implements CommandExecutor {
 
         assert world != null;
         String coordId = coordsDAO.saveCoordinate(name, x, y, z, world, player);
-        player.sendMessage(ChatColor.GREEN + "📍 Coordinate saved with ID: " + coordId);
+        String formattedMessage = String.format("%s (%s), %s %s %s in %s", name, coordId, x, y, z, world);
+    player.sendMessage(ChatColor.GREEN + "📍 Coordinate saved: " + ChatColor.DARK_AQUA + formattedMessage);
         return true;
     }
 
@@ -139,10 +140,15 @@ public class BaseCommand implements CommandExecutor {
         }
 
         String coordId = args[1];
+        String name = coordsDAO.getCoordByName(coordId);
+        if (name == null) {
+            sender.sendMessage(ChatColor.RED + "Coordinate not found.");
+            return true;
+        }
         boolean deleted = coordsDAO.deleteCoordinate(coordId, sender instanceof Player ? (Player) sender : null);
 
         if (deleted) {
-            sender.sendMessage(ChatColor.GREEN + "📍 Coordinate deleted successfully.");
+            sender.sendMessage(ChatColor.GREEN + "📍 Coordinate " + ChatColor.DARK_AQUA + name + " (" + coordId + ")" + ChatColor.GREEN + " deleted successfully.");
         } else {
             sender.sendMessage(ChatColor.RED + "Could not delete coordinate. It may not exist or you may not have permission.");
         }
@@ -238,7 +244,7 @@ public class BaseCommand implements CommandExecutor {
 
     private boolean handleCheckCommand(CommandSender sender, String[] args) {
         if (!sender.isOp()) {
-            sender.sendMessage(ChatColor.DARK_RED + "Only operators can use this command.");
+            sender.sendMessage(ChatColor.DARK_RED + "You don't have permission to use this command.");
             return true;
         }
 

@@ -101,6 +101,14 @@ public class CoordsDAO {
         return matchingCoords;
     }
 
+    public String getCoordByName(String searchName) {
+        List<String> matchingCoords = readCoordLines().stream()
+                .filter(line -> line.toLowerCase().contains(searchName.toLowerCase()))
+                .map(this::formatCoordLine)
+                .collect(Collectors.toList());
+        return matchingCoords.get(0);
+    }
+
     public List<String> listPlayerCoordinates(Player player, int page) {
         List<String> playerCoords = readCoordLines().stream()
                 .filter(line -> line.endsWith(player.getUniqueId().toString()))
