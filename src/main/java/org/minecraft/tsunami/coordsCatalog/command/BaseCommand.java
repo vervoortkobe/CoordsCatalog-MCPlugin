@@ -5,6 +5,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
 import org.minecraft.tsunami.coordsCatalog.Main;
 import org.minecraft.tsunami.coordsCatalog.dao.CoordsDAO;
@@ -87,8 +88,8 @@ public class BaseCommand implements CommandExecutor {
     }
 
     private void sendHelpMessage(CommandSender sender) {
-        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "CoordsCatalog Commands:");
-        sender.sendMessage(ChatColor.WHITE + "/coordscatalog save <name> [X] [Y] [Z] [world] " + ChatColor.GRAY + "- Save coordinates");
+        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "📍 CoordsCatalog Commands:");
+        sender.sendMessage(ChatColor.WHITE + "/coordscatalog save <name...> [X] [Y] [Z] [overworld/nether/end] " + ChatColor.GRAY + "- Save coordinates");
         sender.sendMessage(ChatColor.WHITE + "/coordscatalog delete <coordID> " + ChatColor.GRAY + "- Delete a coordinate");
         sender.sendMessage(ChatColor.WHITE + "/coordscatalog list [page] " + ChatColor.GRAY + "- List saved coordinates");
         sender.sendMessage(ChatColor.WHITE + "/coordscatalog find <name> " + ChatColor.GRAY + "- Find coordinates by name");
@@ -98,28 +99,40 @@ public class BaseCommand implements CommandExecutor {
 
     private boolean handleSaveCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ChatColor.RED + "Usage: /coordscatalog save <name> [X] [Y] [Z] [world]");
+            player.sendMessage(ChatColor.RED + "Usage: /coordscatalog save <name...> <X> [Y] [Z] [overworld/nether/end]");
             return true;
         }
 
-        String name = args[1];
+        StringBuilder nameBuilder = new StringBuilder(args[1]);
+        int numberIndex = -1;
+
+        for (int i = 2; i < args.length; i++) {
+            try {
+                Double.parseDouble(args[i]);
+                numberIndex = i;
+                break;
+            } catch (NumberFormatException ignored) {
+                nameBuilder.append(" ").append(args[i]);
+            }
+        }
+
+        if (numberIndex == -1) {
+            player.sendMessage(ChatColor.RED + "No coordinates provided");
+            return true;
+        }
+
+        String name = nameBuilder.toString();
         Location location = player.getLocation();
         double x, y, z;
         World world = location.getWorld();
 
         try {
-            if (args.length >= 5) {
-                x = parseCoordinate(args[2], location.getX());
-                y = parseCoordinate(args[3], location.getY());
-                z = parseCoordinate(args[4], location.getZ());
-            } else {
-                x = location.getX();
-                y = location.getY();
-                z = location.getZ();
-            }
+            x = parseCoordinate(args[numberIndex], location.getX());
+            y = numberIndex + 1 < args.length ? parseCoordinate(args[numberIndex + 1], location.getY()) : location.getY();
+            z = numberIndex + 2 < args.length ? parseCoordinate(args[numberIndex + 2], location.getZ()) : location.getZ();
 
-            if (args.length == 6) {
-                world = parseWorld(args[5]);
+            if (numberIndex + 3 < args.length) {
+                world = parseWorld(args[numberIndex + 3]);
             }
         } catch (IllegalArgumentException e) {
             player.sendMessage(ChatColor.RED + e.getMessage());
@@ -129,7 +142,7 @@ public class BaseCommand implements CommandExecutor {
         assert world != null;
         String coordId = coordsDAO.saveCoordinate(name, x, y, z, world, player);
         String formattedMessage = String.format("%s (%s), %s %s %s in %s", name, coordId, x, y, z, world);
-    player.sendMessage(ChatColor.GREEN + "📍 Coordinate saved: " + ChatColor.DARK_AQUA + formattedMessage);
+        player.sendMessage(ChatColor.GREEN + "📍 Coordinate saved: " + ChatColor.DARK_AQUA + formattedMessage);
         return true;
     }
 
@@ -169,7 +182,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> coords = coordsDAO.listCoordinates(page);
         int totalPages = coordsDAO.getTotalPages();
 
-        sender.sendMessage(ChatColor.DARK_AQUA + "Coordinates (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "📍 Coordinates (Page " + page + "/" + totalPages + "):");
         coords.forEach(sender::sendMessage);
 
         if (page > 1) {
@@ -202,7 +215,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> foundCoords = coordsDAO.findCoordinatesByName(searchName, page);
         int totalPages = coordsDAO.getTotalPagesForSearch(searchName);
 
-        sender.sendMessage(ChatColor.DARK_AQUA + "📍 Coordinates matching '" + searchName + "' (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "📍 Coordinates matching '" + searchName + "' (Page " + page + "/" + totalPages + "):");
         foundCoords.forEach(sender::sendMessage);
 
         if (page > 1) {
@@ -229,7 +242,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> myCoords = coordsDAO.listPlayerCoordinates(player, page);
         int totalPages = coordsDAO.getTotalPagesForPlayer(player);
 
-        player.sendMessage(ChatColor.DARK_AQUA + "📍 Your Coordinates (Page " + page + "/" + totalPages + "):");
+        player.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "📍 Your Coordinates (Page " + page + "/" + totalPages + "):");
         myCoords.forEach(player::sendMessage);
 
         if (page > 1) {
@@ -272,7 +285,7 @@ public class BaseCommand implements CommandExecutor {
         List<String> targetCoords = coordsDAO.listPlayerCoordinates(targetPlayer, page);
         int totalPages = coordsDAO.getTotalPagesForPlayer(targetPlayer);
 
-        sender.sendMessage(ChatColor.DARK_AQUA + "📍 " + targetPlayer.getName() + "'s Coordinates (Page " + page + "/" + totalPages + "):");
+        sender.sendMessage(ChatColor.DARK_AQUA + "" + ChatColor.BOLD + "📍 " + targetPlayer.getName() + "'s Coordinates (Page " + page + "/" + totalPages + "):");
         targetCoords.forEach(sender::sendMessage);
 
         if (page > 1) {

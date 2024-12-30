@@ -1,5 +1,6 @@
 package org.minecraft.tsunami.coordsCatalog.dao;
 
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.minecraft.tsunami.coordsCatalog.Main;
@@ -105,7 +106,7 @@ public class CoordsDAO {
         List<String> matchingCoords = readCoordLines().stream()
                 .filter(line -> line.toLowerCase().contains(searchName.toLowerCase()))
                 .map(this::formatCoordLine)
-                .collect(Collectors.toList());
+                .toList();
         return matchingCoords.get(0);
     }
 
@@ -154,7 +155,7 @@ public class CoordsDAO {
     private String formatCoordLine(String line) {
         String[] parts = line.split(",");
         if (parts.length >= 7) {
-            return String.format("§7📍 ID: %s, Name: %s, Location: (%.2f, %.2f, %.2f) in %s",
+            return String.format(ChatColor.WHITE + "- %s " + ChatColor.BOLD + "%s" + ChatColor.RESET + ChatColor.WHITE + ": %.2f %.2f %.2f in %s",
                     parts[0], parts[1],
                     Double.parseDouble(parts[2]),
                     Double.parseDouble(parts[3]),
