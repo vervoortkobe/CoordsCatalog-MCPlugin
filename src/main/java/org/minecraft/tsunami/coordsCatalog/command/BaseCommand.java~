@@ -1,0 +1,521 @@
+package org.minecraft.tsunami.coordsCatalog.command;
+
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.minecraft.tsunami.coordsCatalog.Main;
+import org.minecraft.tsunami.coordsCatalog.config.ConfigManager;
+import org.minecraft.tsunami.coordsCatalog.data.Coordinate;
+import org.minecraft.tsunami.coordsCatalog.data.CoordsManager;
+import org.minecraft.tsunami.coordsCatalog.util.CoordsUtil;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+
+public class BaseCommand implements CommandExecutor, TabCompleter {
+
+    private final Main plugin;
+    private final CoordsManager coordsManager;
+    private final ConfigManager configManager;
+
+    public BaseCommand(Main plugin) {
+        this.plugin = plugin;
+        this.coordsManager = plugin.getCoordsManager();
+        this.configManager = plugin.getConfigManager();
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+        if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("help"))) {
+            sendHelpMessage(sender);
+            return true;
+        }
+
+        String subCommand = args[0].toLowerCase();
+
+        return switch (subCommand) {
+            case "save" -> handleSaveCommand(sender, args);
+            case "delete", "del" -> handleDeleteCommand(sender, args);
+            case "list" -> handleListCommand(sender, args, label);
+            case "find", "search" -> handleFindCommand(sender, args, label);
+            case "me" -> handleMeCommand(sender, args, label);
+            case "check" -> handleCheckCommand(sender, args, label);
+            case "reload" -> handleReloadCommand(sender);
+            default -> {
+                sender.sendMessage(configManager.getFormattedMessage("prefix", "") + configManager.getMessage("invalid-command")); // Add invalid-command message
+                yield true;
+            }
+        };
+    }
+
+    private boolean handleSaveCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("coordscatalog.save")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(configManager.getMessage("player-only"));
+            return true;
+        }
+
+        // Args structure: /cc save <name...> [x y z] [world]
+        if (args.length < 2) {
+            player.sendMessage(configManager.getMessage("usage-save"));
+            return true;
+        }
+
+        List<String> nameParts = new ArrayList<>();
+        List<String> potentialCoords = new ArrayList<>();
+        String potentialWorld = null;
+        boolean coordsStarted = false;
+
+        for (int i = 1; i < args.length; i++) {
+            String arg = args[i];
+            if ((arg.matches("~|~?-?\\d+(\\.\\d+)?") || arg.matches("-?\\d+(\\.\\d+)?")) && (potentialCoords.size() < 3)) {
+                if (!coordsStarted) coordsStarted = true;
+                potentialCoords.add(arg);
+            } else if (coordsStarted && potentialCoords.size() == 3 && potentialWorld == null) {
+                potentialWorld = arg;
+            } else if (!coordsStarted) {
+                nameParts.add(arg);
+            } else {
+                player.sendMessage(configManager.getMessage("usage-save"));
+                return true;
+            }
+        }
+
+
+        if (nameParts.isEmpty()) {
+            player.sendMessage(configManager.getMessage("usage-save") + " - Name cannot be empty.");
+            return true;
+        }
+        String name = String.join(" ", nameParts);
+
+        Location playerLoc = player.getLocation();
+        double x = playerLoc.getX();
+        double y = playerLoc.getY();
+        double z = playerLoc.getZ();
+        World world = playerLoc.getWorld();
+
+        try {
+            // Parse coordinates if provided
+            if (!potentialCoords.isEmpty()) {
+                x = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getX());
+            }
+            if (potentialCoords.size() >= 2) {
+                y = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getY());
+            }
+            if (potentialCoords.size() == 3) {
+                z = CoordsUtil.parseCoordinate(potentialCoords.get(2), playerLoc.getZ());
+            } else if (!potentialCoords.isEmpty() && potentialCoords.size() != 3) {
+                player.sendMessage(configManager.getMessage("usage-save") + " - Provide X, Y, and Z or none for current location.");
+                return true;
+            }
+
+            if (potentialWorld != null) {
+                World parsedWorld = CoordsUtil.parseWorld(potentialWorld, playerLoc);
+                if (parsedWorld == null) {
+                    player.sendMessage(configManager.getFormattedMessage("invalid-world", "world", potentialWorld));
+                    return true;
+                }
+                world = parsedWorld;
+            }
+
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(configManager.getFormattedMessage("invalid-coordinate", "value", e.getMessage().split(": ")[1]));
+            return true;
+        }
+
+        if (world == null) {
+            player.sendMessage(configManager.getFormattedMessage("prefix") + "&cCould not determine the world.");
+            return true;
+        }
+
+        Coordinate savedCoord = coordsManager.addCoordinate(name, x, y, z, world, player);
+
+        player.sendMessage(configManager.getFormattedMessage("prefix") +
+                configManager.getFormattedMessage("coord-saved",
+                        "name", savedCoord.getName(),
+                        "id", savedCoord.getId(),
+                        "x", String.format("%.2f", savedCoord.getX()),
+                        "y", String.format("%.2f", savedCoord.getY()),
+                        "z", String.format("%.2f", savedCoord.getZ()),
+                        "world", savedCoord.getWorldName()
+                ));
+        return true;
+    }
+
+    private boolean handleDeleteCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("coordscatalog.delete")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(configManager.getMessage("player-only"));
+            return true;
+        }
+
+
+        if (args.length != 2) {
+            sender.sendMessage(configManager.getMessage("usage-delete"));
+            return true;
+        }
+
+        String coordId = args[1];
+        Coordinate coordToDelete = coordsManager.getCoordinateById(coordId);
+
+        if (coordToDelete == null) {
+            sender.sendMessage(configManager.getMessage("coord-not-found"));
+            return true;
+        }
+
+        Coordinate deletedCoord = coordsManager.deleteCoordinate(coordId, player);
+
+        if (deletedCoord != null) {
+            sender.sendMessage(configManager.getFormattedMessage("prefix") +
+                    configManager.getFormattedMessage("coord-deleted",
+                            "name", deletedCoord.getName(),
+                            "id", deletedCoord.getId()
+                    ));
+        } else {
+            sender.sendMessage(configManager.getFormattedMessage("prefix") + configManager.getMessage("coord-delete-failed"));
+        }
+        return true;
+    }
+
+    private boolean handleListCommand(CommandSender sender, String[] args, String label) {
+        if (!sender.hasPermission("coordscatalog.list")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+
+        int page = 1;
+        if (args.length == 2) {
+            try {
+                page = Integer.parseInt(args[1]);
+                if (page < 1) page = 1;
+            } catch (NumberFormatException e) {
+                sender.sendMessage(configManager.getMessage("invalid-page"));
+                return true;
+            }
+        }
+
+        List<Coordinate> allCoords = coordsManager.getAllCoordinates();
+        int coordsPerPage = configManager.getCoordsPerPage();
+        int totalPages = coordsManager.getTotalPages(allCoords.size(), coordsPerPage);
+        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(allCoords, page, coordsPerPage);
+
+        sender.sendMessage(configManager.getFormattedMessage("list-header",
+                "page", String.valueOf(page),
+                "totalPages", String.valueOf(totalPages)));
+
+        if (paginatedCoords.isEmpty()) {
+            sender.sendMessage(configManager.getMessage("prefix") + "&7No coordinates found."); // Add message
+        } else {
+            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
+        }
+
+        if (totalPages > 1) {
+            if (page < totalPages) {
+                sender.sendMessage(configManager.getFormattedMessage("page-info",
+                        "command", label,
+                        "subcommand", "list",
+                        "args", "",
+                        "nextPage", String.valueOf(page + 1)));
+            }
+        }
+
+        return true;
+    }
+
+    private boolean handleFindCommand(CommandSender sender, String[] args, String label) {
+        if (!sender.hasPermission("coordscatalog.find")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(configManager.getMessage("usage-find"));
+            return true;
+        }
+
+        String searchQuery = args[1];
+        int page = 1;
+        if (args.length == 3) {
+            try {
+                page = Integer.parseInt(args[2]);
+                if (page < 1) page = 1;
+            } catch (NumberFormatException e) {
+                sender.sendMessage(configManager.getMessage("invalid-page"));
+                return true;
+            }
+        }
+
+        List<Coordinate> foundCoords = coordsManager.findCoordinatesByIdOrName(searchQuery);
+        int coordsPerPage = configManager.getCoordsPerPage();
+        int totalPages = coordsManager.getTotalPages(foundCoords.size(), coordsPerPage);
+        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(foundCoords, page, coordsPerPage);
+
+        sender.sendMessage(configManager.getFormattedMessage("find-header",
+                "search", searchQuery,
+                "page", String.valueOf(page),
+                "totalPages", String.valueOf(totalPages)));
+
+        if (paginatedCoords.isEmpty()) {
+            sender.sendMessage(configManager.getMessage("prefix") + "&7No coordinates found matching '" + searchQuery + "'.");
+        } else {
+            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
+        }
+
+        if (totalPages > 1 && page < totalPages) {
+            sender.sendMessage(configManager.getFormattedMessage("page-info",
+                    "command", label,
+                    "subcommand", "find",
+                    "args", searchQuery,
+                    "nextPage", String.valueOf(page + 1)));
+        }
+
+        return true;
+    }
+
+    private boolean handleMeCommand(CommandSender sender, String[] args, String label) {
+        if (!sender.hasPermission("coordscatalog.me")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(configManager.getMessage("player-only"));
+            return true;
+        }
+
+        int page = 1;
+        if (args.length == 2) {
+            try {
+                page = Integer.parseInt(args[1]);
+                if (page < 1) page = 1;
+            } catch (NumberFormatException e) {
+                sender.sendMessage(configManager.getMessage("invalid-page"));
+                return true;
+            }
+        }
+
+        List<Coordinate> myCoords = coordsManager.getCoordinatesByOwner(player.getUniqueId());
+        int coordsPerPage = configManager.getCoordsPerPage();
+        int totalPages = coordsManager.getTotalPages(myCoords.size(), coordsPerPage);
+        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(myCoords, page, coordsPerPage);
+
+        sender.sendMessage(configManager.getFormattedMessage("me-header",
+                "page", String.valueOf(page),
+                "totalPages", String.valueOf(totalPages)));
+
+        if (paginatedCoords.isEmpty()) {
+            sender.sendMessage(configManager.getMessage("prefix") + "&7You haven't saved any coordinates yet.");
+        } else {
+            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
+        }
+
+        if (totalPages > 1 && page < totalPages) {
+            sender.sendMessage(configManager.getFormattedMessage("page-info",
+                    "command", label,
+                    "subcommand", "me",
+                    "args", "",
+                    "nextPage", String.valueOf(page + 1)));
+        }
+
+        return true;
+    }
+
+    private boolean handleCheckCommand(CommandSender sender, String[] args, String label) {
+        if (!sender.hasPermission("coordscatalog.check")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(configManager.getMessage("usage-check"));
+            return true;
+        }
+
+        String targetPlayerName = args[1];
+        @SuppressWarnings("deprecation")
+        org.bukkit.OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName);
+
+        if (targetPlayer == null || !targetPlayer.hasPlayedBefore()) {
+            sender.sendMessage(configManager.getMessage("prefix") + "&cPlayer '" + targetPlayerName + "' not found or has never played on this server.");
+            return true;
+        }
+
+        UUID targetUUID = targetPlayer.getUniqueId();
+
+        int page = 1;
+        if (args.length == 3) {
+            try {
+                page = Integer.parseInt(args[2]);
+                if (page < 1) page = 1;
+            } catch (NumberFormatException e) {
+                sender.sendMessage(configManager.getMessage("invalid-page"));
+                return true;
+            }
+        }
+
+        List<Coordinate> targetCoords = coordsManager.getCoordinatesByOwner(targetUUID);
+        int coordsPerPage = configManager.getCoordsPerPage();
+        int totalPages = coordsManager.getTotalPages(targetCoords.size(), coordsPerPage);
+        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(targetCoords, page, coordsPerPage);
+
+        // Use targetPlayer.getName() which might be null if data is unavailable, fallback to input name
+        String displayName = targetPlayer.getName() != null ? targetPlayer.getName() : targetPlayerName;
+
+        sender.sendMessage(configManager.getFormattedMessage("check-header",
+                "player", displayName,
+                "page", String.valueOf(page),
+                "totalPages", String.valueOf(totalPages)));
+
+        if (paginatedCoords.isEmpty()) {
+            sender.sendMessage(configManager.getMessage("prefix") + "&7Player '" + displayName + "' has no saved coordinates.");
+        } else {
+            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
+        }
+
+        // Page navigation info
+        if (totalPages > 1 && page < totalPages) {
+            sender.sendMessage(configManager.getFormattedMessage("page-info",
+                    "command", label,
+                    "subcommand", "check",
+                    "args", displayName, // Use display name in args
+                    "nextPage", String.valueOf(page + 1)));
+        }
+
+        return true;
+    }
+
+    private boolean handleReloadCommand(CommandSender sender) {
+        if (!sender.hasPermission("coordscatalog.admin")) { // Or a new coordscatalog.reload perm
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+
+        plugin.getConfigManager().loadConfig();
+        plugin.getCoordsManager().loadCoords(); // Reload coords as well
+        sender.sendMessage(configManager.getMessage("prefix") + "&aConfiguration and coordinates reloaded.");
+        return true;
+    }
+
+
+    private void sendHelpMessage(CommandSender sender) {
+        sender.sendMessage(configManager.getMessage("prefix") + ChatColor.BOLD + "CoordsCatalog Commands:");
+        sender.sendMessage(ChatColor.WHITE + "/cc save <name...> [X Y Z] [world] " + ChatColor.GRAY + "- Save coordinates (uses current pos/world if unspecified)");
+        sender.sendMessage(ChatColor.WHITE + "/cc delete <coordID> " + ChatColor.GRAY + "- Delete a coordinate by its ID");
+        sender.sendMessage(ChatColor.WHITE + "/cc list [page] " + ChatColor.GRAY + "- List all saved coordinates");
+        sender.sendMessage(ChatColor.WHITE + "/cc find <name|id> [page] " + ChatColor.GRAY + "- Find coordinates by name or ID");
+        sender.sendMessage(ChatColor.WHITE + "/cc me [page] " + ChatColor.GRAY + "- Show your saved coordinates");
+        if (sender.hasPermission("coordscatalog.check")) { // Only show if they have perm
+            sender.sendMessage(ChatColor.WHITE + "/cc check <player> [page] " + ChatColor.GRAY + "- Check another player's coordinates");
+        }
+        if (sender.hasPermission("coordscatalog.admin")) { // Or coordscatalog.reload
+            sender.sendMessage(ChatColor.WHITE + "/cc reload " + ChatColor.GRAY + "- Reload configuration and data");
+        }
+    }
+
+
+    // --- Tab Completer ---
+
+    @Override
+    @Nullable // Return null for no completions, empty list for default completions
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        List<String> completions = new ArrayList<>();
+        List<String> possibilities = new ArrayList<>();
+
+        if (args.length == 1) {
+            // Top-level subcommands
+            possibilities.addAll(Arrays.asList("help", "save", "delete", "list", "find", "me"));
+            if (sender.hasPermission("coordscatalog.check")) possibilities.add("check");
+            if (sender.hasPermission("coordscatalog.admin")) possibilities.add("reload"); // Or .reload perm
+
+        } else if (args.length >= 2) {
+            String subCommand = args[0].toLowerCase();
+            switch (subCommand) {
+                case "delete":
+                case "del":
+                    if (args.length == 2 && sender instanceof Player) { // Suggest IDs for deletion
+                        // Suggest IDs owned by the player or all IDs if OP/Admin
+                        boolean isAdmin = sender.hasPermission("coordscatalog.admin") || sender.isOp();
+                        UUID playerUUID = (sender instanceof Player p) ? p.getUniqueId() : null;
+
+                        coordsManager.getAllCoordinates().stream()
+                                .filter(c -> isAdmin || (playerUUID != null && playerUUID.equals(c.getOwnerUUID())))
+                                .forEach(c -> possibilities.add(c.getId()));
+                    }
+                    break;
+
+                case "list":
+                case "me":
+                    break;
+
+                case "find":
+                case "search":
+                    if (args.length == 2) {
+                        coordsManager.getAllCoordinates().forEach(c -> {
+                            possibilities.add(c.getId());
+                            if (!possibilities.contains(c.getName())) {
+                                possibilities.add(c.getName());
+                            }
+                        });
+                    }
+                    break;
+
+                case "check":
+                    if (args.length == 2 && sender.hasPermission("coordscatalog.check")) {
+                        Bukkit.getOnlinePlayers().forEach(p -> possibilities.add(p.getName()));
+                    }
+                    break;
+
+                case "save":
+                    if (sender instanceof Player player) {
+                        Location loc = player.getLocation();
+                        int argIndex = args.length - 1;
+
+                        boolean likelyCoords;
+                        int coordArgCount = 0;
+                        for(int i = 1; i < argIndex; i++) {
+                            if(args[i].matches("~|~?-?\\d+(\\.\\d+)?") || args[i].matches("-?\\d+(\\.\\d+)?")) {
+                                coordArgCount++;
+                            } else if (coordArgCount > 0 && coordArgCount < 3) {
+                                coordArgCount = 0;
+                            }
+                        }
+                        likelyCoords = (coordArgCount < 3) && (argIndex > 1);
+
+                        if (likelyCoords) {
+                            possibilities.add("~");
+                        }
+
+                        if (coordArgCount == 3 || argIndex > 4) {
+                            Bukkit.getWorlds().forEach(w -> possibilities.add(w.getName()));
+                            possibilities.addAll(Arrays.asList("overworld", "nether", "end"));
+                        }
+                    }
+                    break;
+            }
+        }
+
+        String currentArg = args[args.length - 1].toLowerCase();
+        for (String p : possibilities) {
+            if (p.toLowerCase().startsWith(currentArg)) {
+                completions.add(p);
+            }
+        }
+
+        return completions;
+    }
+}

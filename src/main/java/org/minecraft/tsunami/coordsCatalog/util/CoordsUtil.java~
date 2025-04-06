@@ -11,7 +11,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 public class CoordsUtil {
-
+    
     public static double parseCoordinate(String arg, double relativeValue) throws IllegalArgumentException {
         if (arg.equals("~")) {
             return relativeValue;

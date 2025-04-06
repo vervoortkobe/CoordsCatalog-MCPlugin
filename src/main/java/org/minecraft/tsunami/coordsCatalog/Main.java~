@@ -55,6 +55,7 @@ public class Main extends JavaPlugin {
         instance = null;
     }
 
+    // --- Getters ---
     public static Main getInstance() {
         if (instance == null) {
             throw new IllegalStateException("CoordsCatalog plugin instance is not available. Is the plugin enabled?");

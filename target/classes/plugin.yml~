@@ -1,0 +1,57 @@
+name: CoordsCatalog
+version: '1.1.0'
+main: org.minecraft.tsunami.coordsCatalog.Main
+api-version: '1.17'
+author: Tsunami
+description: A plugin to catalog coordinates with YML storage, update checks, and webhooks.
+
+commands:
+  coordscatalog:
+    description: Base command for CoordsCatalog. Use /cc help for subcommands.
+    usage: /<command> <subcommand> [args...]
+    aliases: [cc, coords]
+
+permissions:
+  # --- Basic User Permissions (Default: true) ---
+  coordscatalog.save:
+    description: Allows saving coordinates using /cc save.
+    default: true
+  coordscatalog.delete:
+    description: Allows deleting own coordinates using /cc delete.
+    default: true
+    # Deleting others' coordinates requires coordscatalog.admin or coordscatalog.delete.others
+  coordscatalog.list:
+    description: Allows listing all coordinates using /cc list.
+    default: true
+  coordscatalog.find:
+    description: Allows finding coordinates by name or ID using /cc find.
+    default: true
+  coordscatalog.me:
+    description: Allows listing own coordinates using /cc me.
+    default: true
+
+  # --- Operator/Admin Permissions (Default: op) ---
+  coordscatalog.check:
+    description: Allows checking other players' coordinates using /cc check <player>.
+    default: op
+  coordscatalog.reload:
+    description: Allows reloading the plugin's configuration and data using /cc reload.
+    default: op
+  coordscatalog.delete.others:
+    description: Allows deleting coordinates owned by other players. (Usually granted via admin perm)
+    default: op
+
+  # --- Admin Super-Permission (Default: op) ---
+  coordscatalog.admin:
+    description: Grants access to all CoordsCatalog commands and functions.
+    default: op
+    children:
+      # Include all other permissions as children for convenience
+      coordscatalog.save: true
+      coordscatalog.delete: true
+      coordscatalog.list: true
+      coordscatalog.find: true
+      coordscatalog.me: true
+      coordscatalog.check: true
+      coordscatalog.reload: true
+      coordscatalog.delete.others: true # Explicitly grant deleting others with admin

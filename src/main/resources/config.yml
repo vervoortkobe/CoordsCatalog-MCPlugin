@@ -1,0 +1,49 @@
+# Settings for the automatic update checker
+update-checker:
+  # Enable checking for new versions on startup?
+  enabled: true
+  # URL to a JSON file containing the latest version info.
+  url: "https://raw.githubusercontent.com/vervoortkobe/CoordsCatalog-MCPlugin/refs/heads/main/version.json" # <-- DO NOT CHANGE THIS URL
+
+# Discord Webhook URLs to send notifications to (can be empty or have multiple)
+# Example: A message is sent when a coordinate is saved or deleted.
+webhooks:
+  enabled: true
+  urls:
+  #- "https://discord.com/api/webhooks/your_webhook_id/your_webhook_token" # <-- ADD YOUR WEBHOOK URLS HERE
+  #- "https://discord.com/api/webhooks/another_webhook_id/another_webhook_token"
+
+# Number of coordinates to display per page in list commands
+coords-per-page: 10
+
+# Messages
+messages:
+  prefix: "&3&l📍 CoordsCatalog >&r " # Chat prefix
+  no-permission: "&cYou don't have permission to do that."
+  player-only: "&cThis command can only be used by players."
+  coord-saved: "&aCoordinate saved: &3%name% &f(&7%id%&f)&a at &b%x% %y% %z%&a in &e%world%&a."
+  coord-deleted: "&aCoordinate &3%name% &f(&7%id%&f)&a deleted successfully."
+  coord-delete-failed: "&cCould not delete coordinate. It may not exist or you may not have permission."
+  coord-not-found: "&cCoordinate not found."
+  invalid-world: "&cInvalid world: %world%"
+  invalid-coordinate: "&cInvalid coordinate value: %value%"
+  invalid-page: "&cInvalid page number."
+  usage-save: "&cUsage: /cc save <name...> [X Y Z] [world]"
+  usage-delete: "&cUsage: /cc delete <coordID>"
+  usage-list: "&cUsage: /cc list [page]"
+  usage-find: "&cUsage: /cc find <name> [page]"
+  usage-me: "&cUsage: /cc me [page]"
+  usage-check: "&cUsage: /cc check <player> [page]"
+  list-header: "&3&l📍 Coordinates (Page %page%/%totalPages%):"
+  find-header: "&3&l📍 Coordinates matching '%search%' (Page %page%/%totalPages%):"
+  me-header: "&3&l📍 Your Coordinates (Page %page%/%totalPages%):"
+  check-header: "&3&l📍 %player%'s Coordinates (Page %page%/%totalPages%):"
+  list-entry: "&f- &7%id% &b&l%name%&r&f: &b%x% %y% %z%&f in &e%world%"
+  page-info: "&7... Use /%command% %subcommand% [args] %nextPage% for more ..."
+  list-empty: "&7No coordinates found."
+  find-empty: "&7No coordinates found matching '%search%'."
+  me-empty: "&7You haven't saved any coordinates yet."
+  check-empty: "&7Player '%player%' has no saved coordinates."
+  player-not-found: "&cPlayer '%player%' not found or has never played on this server."
+  update-available: "&eA new version of CoordsCatalog (%latest_version%) is available! You are running %current_version%. Download: %download_url%"
+  update-check-failed: "&cCould not check for CoordsCatalog updates."
