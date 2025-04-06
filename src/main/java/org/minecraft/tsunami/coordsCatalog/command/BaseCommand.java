@@ -17,13 +17,11 @@ import org.minecraft.tsunami.coordsCatalog.data.Coordinate;
 import org.minecraft.tsunami.coordsCatalog.data.CoordsManager;
 import org.minecraft.tsunami.coordsCatalog.util.CoordsUtil;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
+
+@SuppressWarnings("SameReturnValue")
 public class BaseCommand implements CommandExecutor, TabCompleter {
-
     private final Main plugin;
     private final CoordsManager coordsManager;
     private final ConfigManager configManager;
@@ -52,7 +50,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             case "check" -> handleCheckCommand(sender, args, label);
             case "reload" -> handleReloadCommand(sender);
             default -> {
-                sender.sendMessage(configManager.getFormattedMessage("prefix", "") + configManager.getMessage("invalid-command")); // Add invalid-command message
+                sender.sendMessage(configManager.getFormattedMessage("prefix", "") + configManager.getMessage("invalid-command"));
                 yield true;
             }
         };
@@ -68,7 +66,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // Args structure: /cc save <name...> [x y z] [world]
+        // /cc save <name...> [x y z] [world]
         if (args.length < 2) {
             player.sendMessage(configManager.getMessage("usage-save"));
             return true;
@@ -94,7 +92,6 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-
         if (nameParts.isEmpty()) {
             player.sendMessage(configManager.getMessage("usage-save") + " - Name cannot be empty.");
             return true;
@@ -108,16 +105,10 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         World world = playerLoc.getWorld();
 
         try {
-            // Parse coordinates if provided
-            if (!potentialCoords.isEmpty()) {
-                x = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getX());
-            }
-            if (potentialCoords.size() >= 2) {
-                y = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getY());
-            }
-            if (potentialCoords.size() == 3) {
-                z = CoordsUtil.parseCoordinate(potentialCoords.get(2), playerLoc.getZ());
-            } else if (!potentialCoords.isEmpty() && potentialCoords.size() != 3) {
+            if (!potentialCoords.isEmpty()) x = CoordsUtil.parseCoordinate(potentialCoords.get(0), playerLoc.getX());
+            if (potentialCoords.size() >= 2) y = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getY());
+            if (potentialCoords.size() == 3) z = CoordsUtil.parseCoordinate(potentialCoords.get(2), playerLoc.getZ());
+            else if (!potentialCoords.isEmpty()) {
                 player.sendMessage(configManager.getMessage("usage-save") + " - Provide X, Y, and Z or none for current location.");
                 return true;
             }
@@ -130,7 +121,6 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
                 }
                 world = parsedWorld;
             }
-
         } catch (IllegalArgumentException e) {
             player.sendMessage(configManager.getFormattedMessage("invalid-coordinate", "value", e.getMessage().split(": ")[1]));
             return true;
@@ -145,8 +135,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
 
         player.sendMessage(configManager.getFormattedMessage("prefix") +
                 configManager.getFormattedMessage("coord-saved",
-                        "name", savedCoord.getName(),
-                        "id", savedCoord.getId(),
+                        "name", savedCoord.getName(), "id", savedCoord.getId(),
                         "x", String.format("%.2f", savedCoord.getX()),
                         "y", String.format("%.2f", savedCoord.getY()),
                         "z", String.format("%.2f", savedCoord.getZ()),
@@ -161,11 +150,9 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(configManager.getMessage("player-only"));
+            sender.sendMessage(configManager.getMessage("player-only")); // Keeping player only for now
             return true;
         }
-
-
         if (args.length != 2) {
             sender.sendMessage(configManager.getMessage("usage-delete"));
             return true;
@@ -184,8 +171,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         if (deletedCoord != null) {
             sender.sendMessage(configManager.getFormattedMessage("prefix") +
                     configManager.getFormattedMessage("coord-deleted",
-                            "name", deletedCoord.getName(),
-                            "id", deletedCoord.getId()
+                            "name", deletedCoord.getName(), "id", deletedCoord.getId()
                     ));
         } else {
             sender.sendMessage(configManager.getFormattedMessage("prefix") + configManager.getMessage("coord-delete-failed"));
@@ -199,42 +185,20 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        int page = 1;
-        if (args.length == 2) {
-            try {
-                page = Integer.parseInt(args[1]);
-                if (page < 1) page = 1;
-            } catch (NumberFormatException e) {
-                sender.sendMessage(configManager.getMessage("invalid-page"));
-                return true;
-            }
+        Optional<Integer> pageOptional = parsePageArgument(sender, args, 1, configManager);
+        if (pageOptional.isEmpty()) {
+            return true;
         }
+        int page = pageOptional.get();
 
-        List<Coordinate> allCoords = coordsManager.getAllCoordinates();
-        int coordsPerPage = configManager.getCoordsPerPage();
-        int totalPages = coordsManager.getTotalPages(allCoords.size(), coordsPerPage);
-        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(allCoords, page, coordsPerPage);
+        List<Coordinate> sourceList = coordsManager.getAllCoordinates();
 
-        sender.sendMessage(configManager.getFormattedMessage("list-header",
-                "page", String.valueOf(page),
-                "totalPages", String.valueOf(totalPages)));
-
-        if (paginatedCoords.isEmpty()) {
-            sender.sendMessage(configManager.getMessage("prefix") + "&7No coordinates found."); // Add message
-        } else {
-            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
-        }
-
-        if (totalPages > 1) {
-            if (page < totalPages) {
-                sender.sendMessage(configManager.getFormattedMessage("page-info",
-                        "command", label,
-                        "subcommand", "list",
-                        "args", "",
-                        "nextPage", String.valueOf(page + 1)));
-            }
-        }
-
+        displayPaginatedList(sender, label, sourceList, page,
+                "list-header", new String[]{},
+                "list-empty",
+                "list",
+                ""
+        );
         return true;
     }
 
@@ -243,50 +207,30 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(configManager.getMessage("no-permission"));
             return true;
         }
-
         if (args.length < 2) {
             sender.sendMessage(configManager.getMessage("usage-find"));
             return true;
         }
 
         String searchQuery = args[1];
-        int page = 1;
-        if (args.length == 3) {
-            try {
-                page = Integer.parseInt(args[2]);
-                if (page < 1) page = 1;
-            } catch (NumberFormatException e) {
-                sender.sendMessage(configManager.getMessage("invalid-page"));
-                return true;
-            }
+
+        Optional<Integer> pageOptional = parsePageArgument(sender, args, 2, configManager);
+        if (pageOptional.isEmpty()) {
+            return true;
         }
+        int page = pageOptional.get();
 
-        List<Coordinate> foundCoords = coordsManager.findCoordinatesByIdOrName(searchQuery);
-        int coordsPerPage = configManager.getCoordsPerPage();
-        int totalPages = coordsManager.getTotalPages(foundCoords.size(), coordsPerPage);
-        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(foundCoords, page, coordsPerPage);
+        List<Coordinate> sourceList = coordsManager.findCoordinatesByIdOrName(searchQuery);
 
-        sender.sendMessage(configManager.getFormattedMessage("find-header",
-                "search", searchQuery,
-                "page", String.valueOf(page),
-                "totalPages", String.valueOf(totalPages)));
-
-        if (paginatedCoords.isEmpty()) {
-            sender.sendMessage(configManager.getMessage("prefix") + "&7No coordinates found matching '" + searchQuery + "'.");
-        } else {
-            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
-        }
-
-        if (totalPages > 1 && page < totalPages) {
-            sender.sendMessage(configManager.getFormattedMessage("page-info",
-                    "command", label,
-                    "subcommand", "find",
-                    "args", searchQuery,
-                    "nextPage", String.valueOf(page + 1)));
-        }
-
+        displayPaginatedList(sender, label, sourceList, page,
+                "find-header", new String[]{"search", searchQuery},
+                "find-empty",
+                "find",
+                searchQuery
+        );
         return true;
     }
+
 
     private boolean handleMeCommand(CommandSender sender, String[] args, String label) {
         if (!sender.hasPermission("coordscatalog.me")) {
@@ -298,40 +242,20 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        int page = 1;
-        if (args.length == 2) {
-            try {
-                page = Integer.parseInt(args[1]);
-                if (page < 1) page = 1;
-            } catch (NumberFormatException e) {
-                sender.sendMessage(configManager.getMessage("invalid-page"));
-                return true;
-            }
+        Optional<Integer> pageOptional = parsePageArgument(sender, args, 1, configManager);
+        if (pageOptional.isEmpty()) {
+            return true;
         }
+        int page = pageOptional.get();
 
-        List<Coordinate> myCoords = coordsManager.getCoordinatesByOwner(player.getUniqueId());
-        int coordsPerPage = configManager.getCoordsPerPage();
-        int totalPages = coordsManager.getTotalPages(myCoords.size(), coordsPerPage);
-        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(myCoords, page, coordsPerPage);
+        List<Coordinate> sourceList = coordsManager.getCoordinatesByOwner(player.getUniqueId());
 
-        sender.sendMessage(configManager.getFormattedMessage("me-header",
-                "page", String.valueOf(page),
-                "totalPages", String.valueOf(totalPages)));
-
-        if (paginatedCoords.isEmpty()) {
-            sender.sendMessage(configManager.getMessage("prefix") + "&7You haven't saved any coordinates yet.");
-        } else {
-            paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
-        }
-
-        if (totalPages > 1 && page < totalPages) {
-            sender.sendMessage(configManager.getFormattedMessage("page-info",
-                    "command", label,
-                    "subcommand", "me",
-                    "args", "",
-                    "nextPage", String.valueOf(page + 1)));
-        }
-
+        displayPaginatedList(sender, label, sourceList, page,
+                "me-header", new String[]{},
+                "me-empty",
+                "me",
+                ""
+        );
         return true;
     }
 
@@ -340,48 +264,97 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(configManager.getMessage("no-permission"));
             return true;
         }
-
         if (args.length < 2) {
             sender.sendMessage(configManager.getMessage("usage-check"));
             return true;
         }
 
         String targetPlayerName = args[1];
-        @SuppressWarnings("deprecation")
-        org.bukkit.OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName);
+        @SuppressWarnings("deprecation") org.bukkit.OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName);
 
-        if (targetPlayer == null || !targetPlayer.hasPlayedBefore()) {
-            sender.sendMessage(configManager.getMessage("prefix") + "&cPlayer '" + targetPlayerName + "' not found or has never played on this server.");
+        if (!targetPlayer.hasPlayedBefore()) {
+            sender.sendMessage(configManager.getFormattedMessage("prefix") +
+                    configManager.getFormattedMessage("player-not-found", "player", targetPlayerName));
             return true;
         }
 
         UUID targetUUID = targetPlayer.getUniqueId();
-
-        int page = 1;
-        if (args.length == 3) {
-            try {
-                page = Integer.parseInt(args[2]);
-                if (page < 1) page = 1;
-            } catch (NumberFormatException e) {
-                sender.sendMessage(configManager.getMessage("invalid-page"));
-                return true;
-            }
-        }
-
-        List<Coordinate> targetCoords = coordsManager.getCoordinatesByOwner(targetUUID);
-        int coordsPerPage = configManager.getCoordsPerPage();
-        int totalPages = coordsManager.getTotalPages(targetCoords.size(), coordsPerPage);
-        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(targetCoords, page, coordsPerPage);
-
         String displayName = targetPlayer.getName() != null ? targetPlayer.getName() : targetPlayerName;
 
-        sender.sendMessage(configManager.getFormattedMessage("check-header",
-                "player", displayName,
-                "page", String.valueOf(page),
-                "totalPages", String.valueOf(totalPages)));
+        Optional<Integer> pageOptional = parsePageArgument(sender, args, 2, configManager);
+        if (pageOptional.isEmpty()) {
+            return true;
+        }
+        int page = pageOptional.get();
+
+        List<Coordinate> sourceList = coordsManager.getCoordinatesByOwner(targetUUID);
+
+        displayPaginatedList(sender, label, sourceList, page,
+                "check-header", new String[] {"player", displayName},
+                "check-empty",
+                "check",
+                displayName
+        );
+        return true;
+    }
+
+
+    private boolean handleReloadCommand(CommandSender sender) {
+        if (!sender.hasPermission("coordscatalog.admin")) {
+            sender.sendMessage(configManager.getMessage("no-permission"));
+            return true;
+        }
+        plugin.getConfigManager().loadConfig();
+        plugin.getCoordsManager().loadCoords();
+        sender.sendMessage(configManager.getMessage("prefix") + "&aConfiguration and coordinates reloaded.");
+        return true;
+    }
+
+    private Optional<Integer> parsePageArgument(CommandSender sender, String[] args, int pageArgIndex, ConfigManager configManager) {
+        int page = 1;
+        if (args.length > pageArgIndex) {
+            try {
+                page = Integer.parseInt(args[pageArgIndex]);
+                if (page < 1) {
+                    page = 1;
+                }
+            } catch (NumberFormatException e) {
+                sender.sendMessage(configManager.getMessage("invalid-page"));
+                return Optional.empty();
+            }
+        }
+        return Optional.of(page);
+    }
+
+    private void displayPaginatedList(CommandSender sender, String label,
+                                      List<Coordinate> sourceList, int page,
+                                      String headerMsgKey, String[] headerReplacements,
+                                      String emptyListMsgKey,
+                                      String pageInfoSubCommand, String pageInfoArgs) {
+
+        int coordsPerPage = configManager.getCoordsPerPage();
+        int totalPages = coordsManager.getTotalPages(sourceList.size(), coordsPerPage);
+        List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(sourceList, page, coordsPerPage);
+
+        if (page > totalPages && totalPages > 0) {
+            page = totalPages;
+            paginatedCoords = coordsManager.getPaginatedCoordinates(sourceList, page, coordsPerPage);
+        } else if (page < 1) {
+            page = 1;
+            paginatedCoords = coordsManager.getPaginatedCoordinates(sourceList, page, coordsPerPage);
+        }
+
+        List<String> finalHeaderReplacements = new ArrayList<>(Arrays.asList(headerReplacements));
+        finalHeaderReplacements.add("page");
+        finalHeaderReplacements.add(String.valueOf(page));
+        finalHeaderReplacements.add("totalPages");
+        finalHeaderReplacements.add(String.valueOf(totalPages));
+
+        sender.sendMessage(configManager.getFormattedMessage(headerMsgKey, finalHeaderReplacements.toArray(String[]::new)));
 
         if (paginatedCoords.isEmpty()) {
-            sender.sendMessage(configManager.getMessage("prefix") + "&7Player '" + displayName + "' has no saved coordinates.");
+            String emptyMessage = configManager.getFormattedMessage(emptyListMsgKey, headerReplacements);
+            sender.sendMessage(configManager.getMessage("prefix") + emptyMessage);
         } else {
             paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
         }
@@ -389,26 +362,11 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         if (totalPages > 1 && page < totalPages) {
             sender.sendMessage(configManager.getFormattedMessage("page-info",
                     "command", label,
-                    "subcommand", "check",
-                    "args", displayName,
+                    "subcommand", pageInfoSubCommand,
+                    "args", pageInfoArgs != null ? pageInfoArgs : "",
                     "nextPage", String.valueOf(page + 1)));
         }
-
-        return true;
     }
-
-    private boolean handleReloadCommand(CommandSender sender) {
-        if (!sender.hasPermission("coordscatalog.admin")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-
-        plugin.getConfigManager().loadConfig();
-        plugin.getCoordsManager().loadCoords();
-        sender.sendMessage(configManager.getMessage("prefix") + "&aConfiguration and coordinates reloaded.");
-        return true;
-    }
-
 
     private void sendHelpMessage(CommandSender sender) {
         sender.sendMessage(configManager.getMessage("prefix") + ChatColor.BOLD + "CoordsCatalog Commands:");
@@ -441,20 +399,17 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             switch (subCommand) {
                 case "delete":
                 case "del":
-                    if (args.length == 2 && sender instanceof Player) {
+                    if (args.length == 2 && sender instanceof Player p1) {
                         boolean isAdmin = sender.hasPermission("coordscatalog.admin") || sender.isOp();
-                        UUID playerUUID = (sender instanceof Player p) ? p.getUniqueId() : null;
-
+                        UUID playerUUID = p1.getUniqueId();
                         coordsManager.getAllCoordinates().stream()
-                                .filter(c -> isAdmin || (playerUUID != null && playerUUID.equals(c.getOwnerUUID())))
+                                .filter(c -> isAdmin || playerUUID.equals(c.getOwnerUUID()))
                                 .forEach(c -> possibilities.add(c.getId()));
                     }
                     break;
-
                 case "list":
                 case "me":
                     break;
-
                 case "find":
                 case "search":
                     if (args.length == 2) {
@@ -466,34 +421,34 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
                         });
                     }
                     break;
-
                 case "check":
                     if (args.length == 2 && sender.hasPermission("coordscatalog.check")) {
                         Bukkit.getOnlinePlayers().forEach(p -> possibilities.add(p.getName()));
+                        // Bukkit.getOfflinePlayers().forEach(p -> { if (p.getName() != null) possibilities.add(p.getName()); });
                     }
                     break;
-
                 case "save":
-                    if (sender instanceof Player player) {
-                        Location loc = player.getLocation();
+                    if (sender instanceof Player ignored) {
                         int argIndex = args.length - 1;
-
                         boolean likelyCoords;
                         int coordArgCount = 0;
+                        String lastNonCoordArg = "";
                         for(int i = 1; i < argIndex; i++) {
                             if(args[i].matches("~|~?-?\\d+(\\.\\d+)?") || args[i].matches("-?\\d+(\\.\\d+)?")) {
                                 coordArgCount++;
-                            } else if (coordArgCount > 0 && coordArgCount < 3) {
+                            } else {
                                 coordArgCount = 0;
+                                lastNonCoordArg = args[i];
                             }
                         }
-                        likelyCoords = (coordArgCount < 3) && (argIndex > 1);
+                        likelyCoords = (coordArgCount < 3 && argIndex > 1 && !lastNonCoordArg.isEmpty());
+
 
                         if (likelyCoords) {
                             possibilities.add("~");
                         }
 
-                        if (coordArgCount == 3 || argIndex > 4) {
+                        if (coordArgCount == 3 || (args.length > 3 && !likelyCoords)) {
                             Bukkit.getWorlds().forEach(w -> possibilities.add(w.getName()));
                             possibilities.addAll(Arrays.asList("overworld", "nether", "end"));
                         }
@@ -504,10 +459,12 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
 
         String currentArg = args[args.length - 1].toLowerCase();
         for (String p : possibilities) {
-            if (p.toLowerCase().startsWith(currentArg)) {
+            if (p != null && p.toLowerCase().startsWith(currentArg)) {
                 completions.add(p);
             }
         }
+
+        Collections.sort(completions);
 
         return completions;
     }
