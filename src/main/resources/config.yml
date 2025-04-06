@@ -21,7 +21,7 @@ messages:
   prefix: "&3&l📍 CoordsCatalog >&r " # Chat prefix
   no-permission: "&cYou don't have permission to do that."
   player-only: "&cThis command can only be used by players."
-  coord-saved: "&aCoordinate saved: &3%name% &f(&7%id%&f)&a at &b%.2f %.2f %.2f&a in &e%world%&a."
+  coord-saved: "&aCoordinate saved: &3%name% &f(&7%id%&f)&a at &b%x% %y% %z%&a in &e%world%&a."
   coord-deleted: "&aCoordinate &3%name% &f(&7%id%&f)&a deleted successfully."
   coord-delete-failed: "&cCould not delete coordinate. It may not exist or you may not have permission."
   coord-not-found: "&cCoordinate not found."
@@ -38,7 +38,7 @@ messages:
   find-header: "&3&l📍 Coordinates matching '%search%' (Page %page%/%totalPages%):"
   me-header: "&3&l📍 Your Coordinates (Page %page%/%totalPages%):"
   check-header: "&3&l📍 %player%'s Coordinates (Page %page%/%totalPages%):"
-  list-entry: "&f- &7%id% &b&l%name%&r&f: &b%.2f %.2f %.2f&f in &e%world%"
+  list-entry: "&f- &7%id% &b&l%name%&r&f: &b%x% %y% %z%&f in &e%world%"
   page-info: "&7... Use /%command% %subcommand% [args] %nextPage% for more ..."
   list-empty: "&7No coordinates found."
   find-empty: "&7No coordinates found matching '%search%'."
