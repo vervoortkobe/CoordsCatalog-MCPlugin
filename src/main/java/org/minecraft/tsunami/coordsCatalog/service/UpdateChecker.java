@@ -63,8 +63,7 @@ public class UpdateChecker {
                                 String message = configManager.getFormattedMessage("update-available",
                                         "latest_version", latestVersion,
                                         "current_version", currentVersion,
-                                        "download_url", downloadUrl,
-                                        "spigot_url", spigotUrl
+                                        "download_url", spigotUrl
                                 );
                                 plugin.getLogger().warning(message);
                             } else if (latestVersion != null) {
