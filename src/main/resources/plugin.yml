@@ -1,37 +1,40 @@
 name: CoordsCatalog
-version: '1.0-SNAPSHOT'
+version: 1.2
 main: org.minecraft.tsunami.coordsCatalog.Main
-api-version: '1.21'
+api-version: '1.17' # minimum supported version
+author: YourName
+description: A plugin to catalog coordinates.
 commands:
   coordscatalog:
-    description: Main command for CoordsCatalog
-    aliases: [cc]
-    usage: /cc <subcommand> [args...]
+    description: Base command for CoordsCatalog.
+    usage: /<command> help
+    aliases: [cc, coords]
 permissions:
-  coordscatalog.use:
-    description: Allows use of all CoordsCatalog commands
-    default: true
   coordscatalog.save:
-    description: Allows saving coordinates
-    default: true
+    description: Allows saving coordinates.
+    default: op
   coordscatalog.delete:
-    description: Allows deleting own coordinates
-    default: true
+    description: Allows deleting coordinates.
+    default: op
   coordscatalog.list:
-    description: Allows listing coordinates
-    default: true
+    description: Allows listing all coordinates.
+    default: op
   coordscatalog.find:
-    description: Allows searching for coordinates
-    default: true
+    description: Allows finding coordinates by name.
+    default: op
   coordscatalog.me:
-    description: Allows viewing own coordinates
+    description: Allows listing own coordinates.
     default: true
   coordscatalog.check:
-    description: Allows checking other players' coordinates
+    description: Allows checking other players' coordinates.
     default: op
   coordscatalog.admin:
-    description: Allows use of all admin functions
+    description: Grants all CoordsCatalog permissions.
     default: op
     children:
+      coordscatalog.save: true
+      coordscatalog.delete: true
+      coordscatalog.list: true
+      coordscatalog.find: true
+      coordscatalog.me: true
       coordscatalog.check: true
-      coordscatalog.delete.others: true
