@@ -3,8 +3,7 @@ update-checker:
   # Enable checking for new versions on startup?
   enabled: true
   # URL to a JSON file containing the latest version info.
-  # Example JSON format: {"latest_version": "1.2", "download_url": "https://example.com/download"}
-  url: "https://raw.githubusercontent.com/your_username/your_repo/main/version.json" # <-- CHANGE THIS URL
+  url: "https://raw.githubusercontent.com/vervoortkobe/CoordsCatalog-MCPlugin/refs/heads/main/version.json" # <-- DO NOT CHANGE THIS URL
 
 # Discord Webhook URLs to send notifications to (can be empty or have multiple)
 # Example: A message is sent when a coordinate is saved or deleted.
