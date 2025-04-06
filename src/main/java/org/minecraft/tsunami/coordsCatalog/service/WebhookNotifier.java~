@@ -47,8 +47,8 @@ public class WebhookNotifier {
     public void notifyCoordinateDeleted(Coordinate coord, Player player) {
         if (configManager.isWebhooksEnabled()) return;
 
-        String playerName = (player != null) ? player.getName() : "Console";
-        String ownerName = coord.getOwnerName();
+        String playerName = (player != null) ? player.getName() : "Console"; // Could also be an admin deleting someone else's
+        String ownerName = coord.getOwnerName(); // Get owner name for context
         String message = String.format("""
                         ❌ **Coordinate Deleted**
                         **ID:** `%s`
@@ -61,6 +61,7 @@ public class WebhookNotifier {
         sendWebhookMessage(message);
     }
 
+    // Generic method to send any message
     public void sendCustomWebhookMessage(String message) {
         if (configManager.isWebhooksEnabled()) return;
         sendWebhookMessage(message);
@@ -70,12 +71,16 @@ public class WebhookNotifier {
     private void sendWebhookMessage(String messageContent) {
         List<String> webhookUrls = configManager.getWebhookUrls();
         if (webhookUrls == null || webhookUrls.isEmpty()) {
-            return;
+            return; // No webhooks configured
         }
 
+        // Simple JSON payload for Discord webhook
+        // Escapes quotes and backslashes in the message content
         String escapedMessage = messageContent.replace("\\", "\\\\").replace("\"", "\\\"");
         String jsonPayload = String.format("{\"content\": \"%s\"}", escapedMessage);
 
+
+        // Send asynchronously for each webhook URL
         for (String urlString : webhookUrls) {
             if (urlString == null || urlString.trim().isEmpty()) continue;
 
@@ -87,6 +92,7 @@ public class WebhookNotifier {
 
                         int responseCode = connection.getResponseCode();
                         if (responseCode < 200 || responseCode >= 300) {
+                            // Log error, optionally read error stream
                             try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
                                 StringBuilder response = new StringBuilder();
                                 String responseLine;
@@ -98,6 +104,7 @@ public class WebhookNotifier {
                                 plugin.getLogger().warning("Webhook failed for URL " + urlString + ". Code: " + responseCode + ". Could not read error stream.");
                             }
                         }
+                        // Optionally log success if needed: plugin.getLogger().info("Webhook message sent successfully to " + urlString);
 
                         connection.disconnect();
 

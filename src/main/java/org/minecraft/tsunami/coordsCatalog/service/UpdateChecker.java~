@@ -32,7 +32,7 @@ public class UpdateChecker {
             plugin.getLogger().warning("Update check URL is not configured in config.yml.");
             return;
         }
-
+        
         new BukkitRunnable() {
             @Override
             public void run() {

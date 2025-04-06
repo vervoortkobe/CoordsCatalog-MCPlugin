@@ -40,7 +40,7 @@ public class CoordsManager {
         }
 
         coordsConfig = YamlConfiguration.loadConfiguration(coordsFile);
-        coordinatesCache.clear();
+        coordinatesCache.clear(); // Clear cache before loading
 
         ConfigurationSection coordsSection = coordsConfig.getConfigurationSection("coordinates");
         if (coordsSection != null) {
@@ -58,6 +58,7 @@ public class CoordsManager {
                         World world = (worldName != null) ? Bukkit.getWorld(worldName) : null;
                         UUID owner = (ownerUUID != null) ? UUID.fromString(ownerUUID) : null;
 
+                        // Only load if world exists, otherwise log a warning
                         if (world != null) {
                             Coordinate coord = new Coordinate(id, name, x, y, z, worldName, owner);
                             coordinatesCache.put(id, coord);
@@ -74,7 +75,9 @@ public class CoordsManager {
     }
 
     public void saveCoords() {
+        // Create a new section or clear the existing one
         ConfigurationSection coordsSection = coordsConfig.createSection("coordinates");
+        // coordsConfig.set("coordinates", null); // Clear old section if you prefer
 
         for (Coordinate coord : coordinatesCache.values()) {
             ConfigurationSection entry = coordsSection.createSection(coord.getId());
@@ -101,8 +104,9 @@ public class CoordsManager {
 
         Coordinate newCoord = new Coordinate(id, name, x, y, z, worldName, ownerUUID);
         coordinatesCache.put(id, newCoord);
-        saveCoords();
+        saveCoords(); // Save immediately after adding
 
+        // Notify webhooks
         plugin.getWebhookNotifier().notifyCoordinateAdded(newCoord, player);
 
         return newCoord;
@@ -111,23 +115,24 @@ public class CoordsManager {
     public Coordinate deleteCoordinate(String coordId, Player requester) {
         Coordinate coord = coordinatesCache.get(coordId);
         if (coord == null) {
-            return null;
+            return null; // Not found
         }
 
+        // Check permission: OP or owner can delete
         boolean isOwner = coord.getOwnerUUID() != null && coord.getOwnerUUID().equals(requester.getUniqueId());
         boolean isAdmin = requester.hasPermission("coordscatalog.admin") || requester.isOp(); // Adjust permission if needed
 
         if (!isAdmin && !isOwner) {
-            return null;
+            return null; // No permission
         }
 
         Coordinate removedCoord = coordinatesCache.remove(coordId);
         if (removedCoord != null) {
-            saveCoords();
-
+            saveCoords(); // Save immediately after deleting
+            // Notify webhooks
             plugin.getWebhookNotifier().notifyCoordinateDeleted(removedCoord, requester);
         }
-        return removedCoord;
+        return removedCoord; // Return the deleted coord or null if it wasn't actually removed
     }
 
 
@@ -156,7 +161,7 @@ public class CoordsManager {
         String lowerSearch = search.toLowerCase();
         return coordinatesCache.values().stream()
                 .filter(coord -> coord.getId().equals(lowerSearch) || coord.getName().toLowerCase().contains(lowerSearch))
-                .sorted(Comparator.comparing(Coordinate::getName))
+                .sorted(Comparator.comparing(Coordinate::getName)) // Optional: sort results
                 .collect(Collectors.toList());
     }
 
@@ -169,18 +174,20 @@ public class CoordsManager {
         return id;
     }
 
+    // --- Helper Methods for Pagination ---
+
     public List<Coordinate> getPaginatedCoordinates(List<Coordinate> allCoords, int page, int coordsPerPage) {
         if (page < 1) page = 1;
         int startIndex = (page - 1) * coordsPerPage;
         if (startIndex >= allCoords.size()) {
-            return new ArrayList<>();
+            return new ArrayList<>(); // Page out of bounds
         }
         int endIndex = Math.min(startIndex + coordsPerPage, allCoords.size());
         return allCoords.subList(startIndex, endIndex);
     }
 
     public int getTotalPages(int totalCoords, int coordsPerPage) {
-        if (coordsPerPage <= 0) return 1;
+        if (coordsPerPage <= 0) return 1; // Avoid division by zero
         return (int) Math.ceil((double) totalCoords / coordsPerPage);
     }
 }

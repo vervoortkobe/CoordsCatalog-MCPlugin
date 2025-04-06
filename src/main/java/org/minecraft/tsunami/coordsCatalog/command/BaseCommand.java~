@@ -373,6 +373,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         int totalPages = coordsManager.getTotalPages(targetCoords.size(), coordsPerPage);
         List<Coordinate> paginatedCoords = coordsManager.getPaginatedCoordinates(targetCoords, page, coordsPerPage);
 
+        // Use targetPlayer.getName() which might be null if data is unavailable, fallback to input name
         String displayName = targetPlayer.getName() != null ? targetPlayer.getName() : targetPlayerName;
 
         sender.sendMessage(configManager.getFormattedMessage("check-header",
@@ -386,11 +387,12 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
             paginatedCoords.forEach(coord -> sender.sendMessage(CoordsUtil.formatCoordForDisplay(coord, configManager)));
         }
 
+        // Page navigation info
         if (totalPages > 1 && page < totalPages) {
             sender.sendMessage(configManager.getFormattedMessage("page-info",
                     "command", label,
                     "subcommand", "check",
-                    "args", displayName,
+                    "args", displayName, // Use display name in args
                     "nextPage", String.valueOf(page + 1)));
         }
 
@@ -398,13 +400,13 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleReloadCommand(CommandSender sender) {
-        if (!sender.hasPermission("coordscatalog.admin")) {
+        if (!sender.hasPermission("coordscatalog.admin")) { // Or a new coordscatalog.reload perm
             sender.sendMessage(configManager.getMessage("no-permission"));
             return true;
         }
 
         plugin.getConfigManager().loadConfig();
-        plugin.getCoordsManager().loadCoords();
+        plugin.getCoordsManager().loadCoords(); // Reload coords as well
         sender.sendMessage(configManager.getMessage("prefix") + "&aConfiguration and coordinates reloaded.");
         return true;
     }
@@ -417,31 +419,36 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.WHITE + "/cc list [page] " + ChatColor.GRAY + "- List all saved coordinates");
         sender.sendMessage(ChatColor.WHITE + "/cc find <name|id> [page] " + ChatColor.GRAY + "- Find coordinates by name or ID");
         sender.sendMessage(ChatColor.WHITE + "/cc me [page] " + ChatColor.GRAY + "- Show your saved coordinates");
-        if (sender.hasPermission("coordscatalog.check")) {
+        if (sender.hasPermission("coordscatalog.check")) { // Only show if they have perm
             sender.sendMessage(ChatColor.WHITE + "/cc check <player> [page] " + ChatColor.GRAY + "- Check another player's coordinates");
         }
-        if (sender.hasPermission("coordscatalog.admin")) {
+        if (sender.hasPermission("coordscatalog.admin")) { // Or coordscatalog.reload
             sender.sendMessage(ChatColor.WHITE + "/cc reload " + ChatColor.GRAY + "- Reload configuration and data");
         }
     }
 
+
+    // --- Tab Completer ---
+
     @Override
-    @Nullable
+    @Nullable // Return null for no completions, empty list for default completions
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         List<String> completions = new ArrayList<>();
         List<String> possibilities = new ArrayList<>();
 
         if (args.length == 1) {
+            // Top-level subcommands
             possibilities.addAll(Arrays.asList("help", "save", "delete", "list", "find", "me"));
             if (sender.hasPermission("coordscatalog.check")) possibilities.add("check");
-            if (sender.hasPermission("coordscatalog.admin")) possibilities.add("reload");
+            if (sender.hasPermission("coordscatalog.admin")) possibilities.add("reload"); // Or .reload perm
 
         } else if (args.length >= 2) {
             String subCommand = args[0].toLowerCase();
             switch (subCommand) {
                 case "delete":
                 case "del":
-                    if (args.length == 2 && sender instanceof Player) {
+                    if (args.length == 2 && sender instanceof Player) { // Suggest IDs for deletion
+                        // Suggest IDs owned by the player or all IDs if OP/Admin
                         boolean isAdmin = sender.hasPermission("coordscatalog.admin") || sender.isOp();
                         UUID playerUUID = (sender instanceof Player p) ? p.getUniqueId() : null;
 
