@@ -2,8 +2,6 @@ package org.minecraft.tsunami.coordsCatalog.command;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -19,9 +17,16 @@ import org.minecraft.tsunami.coordsCatalog.util.CoordsUtil;
 
 import java.util.*;
 
+import static org.minecraft.tsunami.coordsCatalog.command.CheckCommand.handleCheckCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.DeleteCommand.handleDeleteCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.FindCommand.handleFindCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.ListCommand.handleListCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.MeCommand.handleMeCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.ReloadCommand.handleReloadCommand;
+import static org.minecraft.tsunami.coordsCatalog.command.SaveCommand.handleSaveCommand;
 
-@SuppressWarnings("SameReturnValue")
 public class BaseCommand implements CommandExecutor, TabCompleter {
+
     private final Main plugin;
     private final CoordsManager coordsManager;
     private final ConfigManager configManager;
@@ -42,13 +47,13 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         String subCommand = args[0].toLowerCase();
 
         return switch (subCommand) {
-            case "save" -> handleSaveCommand(sender, args);
-            case "delete", "del" -> handleDeleteCommand(sender, args);
-            case "list" -> handleListCommand(sender, args, label);
-            case "find", "search" -> handleFindCommand(sender, args, label);
-            case "me" -> handleMeCommand(sender, args, label);
-            case "check" -> handleCheckCommand(sender, args, label);
-            case "reload" -> handleReloadCommand(sender);
+            case "save" -> handleSaveCommand(coordsManager, configManager, sender, args);
+            case "delete", "del" -> handleDeleteCommand(coordsManager, configManager, sender, args);
+            case "list" -> handleListCommand(coordsManager, configManager, sender, args, label);
+            case "find", "search" -> handleFindCommand(coordsManager, configManager, sender, args, label);
+            case "me" -> handleMeCommand(coordsManager, configManager, sender, args, label);
+            case "check" -> handleCheckCommand(coordsManager, configManager, sender, args, label);
+            case "reload" -> handleReloadCommand(plugin, configManager, sender);
             default -> {
                 sender.sendMessage(configManager.getFormattedMessage("prefix", "") + configManager.getMessage("invalid-command"));
                 yield true;
@@ -56,261 +61,7 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         };
     }
 
-    private boolean handleSaveCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("coordscatalog.save")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(configManager.getMessage("player-only"));
-            return true;
-        }
-
-        // /cc save <name...> [x y z] [world]
-        if (args.length < 2) {
-            player.sendMessage(configManager.getMessage("usage-save"));
-            return true;
-        }
-
-        List<String> nameParts = new ArrayList<>();
-        List<String> potentialCoords = new ArrayList<>();
-        String potentialWorld = null;
-        boolean coordsStarted = false;
-
-        for (int i = 1; i < args.length; i++) {
-            String arg = args[i];
-            if ((arg.matches("~|~?-?\\d+(\\.\\d+)?") || arg.matches("-?\\d+(\\.\\d+)?")) && (potentialCoords.size() < 3)) {
-                if (!coordsStarted) coordsStarted = true;
-                potentialCoords.add(arg);
-            } else if (coordsStarted && potentialCoords.size() == 3 && potentialWorld == null) {
-                potentialWorld = arg;
-            } else if (!coordsStarted) {
-                nameParts.add(arg);
-            } else {
-                player.sendMessage(configManager.getMessage("usage-save"));
-                return true;
-            }
-        }
-
-        if (nameParts.isEmpty()) {
-            player.sendMessage(configManager.getMessage("usage-save") + " - Name cannot be empty.");
-            return true;
-        }
-        String name = String.join(" ", nameParts);
-
-        Location playerLoc = player.getLocation();
-        double x = playerLoc.getX();
-        double y = playerLoc.getY();
-        double z = playerLoc.getZ();
-        World world = playerLoc.getWorld();
-
-        try {
-            if (!potentialCoords.isEmpty()) x = CoordsUtil.parseCoordinate(potentialCoords.get(0), playerLoc.getX());
-            if (potentialCoords.size() >= 2) y = CoordsUtil.parseCoordinate(potentialCoords.get(1), playerLoc.getY());
-            if (potentialCoords.size() == 3) z = CoordsUtil.parseCoordinate(potentialCoords.get(2), playerLoc.getZ());
-            else if (!potentialCoords.isEmpty()) {
-                player.sendMessage(configManager.getMessage("usage-save") + " - Provide X, Y, and Z or none for current location.");
-                return true;
-            }
-
-            if (potentialWorld != null) {
-                World parsedWorld = CoordsUtil.parseWorld(potentialWorld, playerLoc);
-                if (parsedWorld == null) {
-                    player.sendMessage(configManager.getFormattedMessage("invalid-world", "world", potentialWorld));
-                    return true;
-                }
-                world = parsedWorld;
-            }
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(configManager.getFormattedMessage("invalid-coordinate", "value", e.getMessage().split(": ")[1]));
-            return true;
-        }
-
-        if (world == null) {
-            player.sendMessage(configManager.getFormattedMessage("prefix") + "&cCould not determine the world.");
-            return true;
-        }
-
-        Coordinate savedCoord = coordsManager.addCoordinate(name, x, y, z, world, player);
-
-        player.sendMessage(configManager.getFormattedMessage("prefix") +
-                configManager.getFormattedMessage("coord-saved",
-                        "name", savedCoord.getName(), "id", savedCoord.getId(),
-                        "x", String.format("%.2f", savedCoord.getX()),
-                        "y", String.format("%.2f", savedCoord.getY()),
-                        "z", String.format("%.2f", savedCoord.getZ()),
-                        "world", savedCoord.getWorldName()
-                ));
-        return true;
-    }
-
-    private boolean handleDeleteCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("coordscatalog.delete")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(configManager.getMessage("player-only")); // Keeping player only for now
-            return true;
-        }
-        if (args.length != 2) {
-            sender.sendMessage(configManager.getMessage("usage-delete"));
-            return true;
-        }
-
-        String coordId = args[1];
-        Coordinate coordToDelete = coordsManager.getCoordinateById(coordId);
-
-        if (coordToDelete == null) {
-            sender.sendMessage(configManager.getMessage("coord-not-found"));
-            return true;
-        }
-
-        Coordinate deletedCoord = coordsManager.deleteCoordinate(coordId, player);
-
-        if (deletedCoord != null) {
-            sender.sendMessage(configManager.getFormattedMessage("prefix") +
-                    configManager.getFormattedMessage("coord-deleted",
-                            "name", deletedCoord.getName(), "id", deletedCoord.getId()
-                    ));
-        } else {
-            sender.sendMessage(configManager.getFormattedMessage("prefix") + configManager.getMessage("coord-delete-failed"));
-        }
-        return true;
-    }
-
-    private boolean handleListCommand(CommandSender sender, String[] args, String label) {
-        if (!sender.hasPermission("coordscatalog.list")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-
-        Optional<Integer> pageOptional = parsePageArgument(sender, args, 1, configManager);
-        if (pageOptional.isEmpty()) {
-            return true;
-        }
-        int page = pageOptional.get();
-
-        List<Coordinate> sourceList = coordsManager.getAllCoordinates();
-
-        displayPaginatedList(sender, label, sourceList, page,
-                "list-header", new String[]{},
-                "list-empty",
-                "list",
-                ""
-        );
-        return true;
-    }
-
-    private boolean handleFindCommand(CommandSender sender, String[] args, String label) {
-        if (!sender.hasPermission("coordscatalog.find")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        if (args.length < 2) {
-            sender.sendMessage(configManager.getMessage("usage-find"));
-            return true;
-        }
-
-        String searchQuery = args[1];
-
-        Optional<Integer> pageOptional = parsePageArgument(sender, args, 2, configManager);
-        if (pageOptional.isEmpty()) {
-            return true;
-        }
-        int page = pageOptional.get();
-
-        List<Coordinate> sourceList = coordsManager.findCoordinatesByIdOrName(searchQuery);
-
-        displayPaginatedList(sender, label, sourceList, page,
-                "find-header", new String[]{"search", searchQuery},
-                "find-empty",
-                "find",
-                searchQuery
-        );
-        return true;
-    }
-
-
-    private boolean handleMeCommand(CommandSender sender, String[] args, String label) {
-        if (!sender.hasPermission("coordscatalog.me")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(configManager.getMessage("player-only"));
-            return true;
-        }
-
-        Optional<Integer> pageOptional = parsePageArgument(sender, args, 1, configManager);
-        if (pageOptional.isEmpty()) {
-            return true;
-        }
-        int page = pageOptional.get();
-
-        List<Coordinate> sourceList = coordsManager.getCoordinatesByOwner(player.getUniqueId());
-
-        displayPaginatedList(sender, label, sourceList, page,
-                "me-header", new String[]{},
-                "me-empty",
-                "me",
-                ""
-        );
-        return true;
-    }
-
-    private boolean handleCheckCommand(CommandSender sender, String[] args, String label) {
-        if (!sender.hasPermission("coordscatalog.check")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        if (args.length < 2) {
-            sender.sendMessage(configManager.getMessage("usage-check"));
-            return true;
-        }
-
-        String targetPlayerName = args[1];
-        @SuppressWarnings("deprecation") org.bukkit.OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(targetPlayerName);
-
-        if (!targetPlayer.hasPlayedBefore()) {
-            sender.sendMessage(configManager.getFormattedMessage("prefix") +
-                    configManager.getFormattedMessage("player-not-found", "player", targetPlayerName));
-            return true;
-        }
-
-        UUID targetUUID = targetPlayer.getUniqueId();
-        String displayName = targetPlayer.getName() != null ? targetPlayer.getName() : targetPlayerName;
-
-        Optional<Integer> pageOptional = parsePageArgument(sender, args, 2, configManager);
-        if (pageOptional.isEmpty()) {
-            return true;
-        }
-        int page = pageOptional.get();
-
-        List<Coordinate> sourceList = coordsManager.getCoordinatesByOwner(targetUUID);
-
-        displayPaginatedList(sender, label, sourceList, page,
-                "check-header", new String[] {"player", displayName},
-                "check-empty",
-                "check",
-                displayName
-        );
-        return true;
-    }
-
-
-    private boolean handleReloadCommand(CommandSender sender) {
-        if (!sender.hasPermission("coordscatalog.admin")) {
-            sender.sendMessage(configManager.getMessage("no-permission"));
-            return true;
-        }
-        plugin.getConfigManager().loadConfig();
-        plugin.getCoordsManager().loadCoords();
-        sender.sendMessage(configManager.getMessage("prefix") + "&aConfiguration and coordinates reloaded.");
-        return true;
-    }
-
-    private Optional<Integer> parsePageArgument(CommandSender sender, String[] args, int pageArgIndex, ConfigManager configManager) {
+    public static Optional<Integer> parsePageArgument(CommandSender sender, String[] args, int pageArgIndex, ConfigManager configManager) {
         int page = 1;
         if (args.length > pageArgIndex) {
             try {
@@ -326,11 +77,13 @@ public class BaseCommand implements CommandExecutor, TabCompleter {
         return Optional.of(page);
     }
 
-    private void displayPaginatedList(CommandSender sender, String label,
-                                      List<Coordinate> sourceList, int page,
-                                      String headerMsgKey, String[] headerReplacements,
-                                      String emptyListMsgKey,
-                                      String pageInfoSubCommand, String pageInfoArgs) {
+    public static void displayPaginatedList(CoordsManager coordsManager, ConfigManager configManager,
+                                            CommandSender sender, String label, List<Coordinate> sourceList, int page,
+                                            String headerMsgKey,
+                                            String[] headerReplacements,
+                                            String emptyListMsgKey,
+                                            String pageInfoSubCommand,
+                                            String pageInfoArgs) {
 
         int coordsPerPage = configManager.getCoordsPerPage();
         int totalPages = coordsManager.getTotalPages(sourceList.size(), coordsPerPage);

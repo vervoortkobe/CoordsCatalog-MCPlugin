@@ -3,7 +3,7 @@ version: 1.2
 main: org.minecraft.tsunami.coordsCatalog.Main
 api-version: '1.17' # minimum supported version
 author: Tsunami
-description: A plugin to catalog coordinates.
+description: A simple plugin to catalog important coordinates in an organized way.
 commands:
   coordscatalog:
     description: Base command for CoordsCatalog.
